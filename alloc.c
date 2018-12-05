@@ -4,10 +4,10 @@
 #include <unistd.h>
 
 void *mymalloc(size_t size) {
-    if(size == 0) return (void*)((int)sbrk(0) + 1);
+    if(size == 0) return (void*)((int)sbrk(0) + 1); // if size is 0, return next free addr
     void *currentBreak = sbrk(0); // getting current break
-    int newAddr = ((int)currentBreak + size);
-    int amtToIncrease = 0;
+    int newAddr = ((int)currentBreak + size); // finding new address
+    int amtToIncrease = 0; // used for 8 bit alignment
 
     if(newAddr % 8 != 0) { // checking if 8bit aligned
       amtToIncrease = (8-(newAddr % 8));
@@ -17,7 +17,10 @@ void *mymalloc(size_t size) {
 }
 
 void *mycalloc(size_t nmemb, size_t size) {
-    return NULL;
+    size_t memsize = nmemb * size; // finding full size of memory to alloc
+    void *ptr = mymalloc(memsize); // alloc with mymalloc
+    memset(ptr, 0, memsize); // zeroing out newly allocated mem
+    return ptr ? ptr : NULL; // if myalloc worked, return ptr, otherwise NULL
 }
 
 void myfree(void *ptr) {

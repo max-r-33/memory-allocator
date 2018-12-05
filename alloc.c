@@ -3,22 +3,26 @@
 #include <string.h>
 #include <unistd.h>
 
-void *mymalloc(size_t size)
-{
+void *mymalloc(size_t size) {
+    void *currentBreak = sbrk(0); // getting current break
+    int newAddr = ((int)currentBreak + size);
+    int amtToIncrease = 0;
+
+    if(newAddr % 8 != 0) { // checking if 8bit aligned
+      amtToIncrease = (8-(newAddr % 8));
+    }
+    
+    return sbrk(size + amtToIncrease);
+}
+
+void *mycalloc(size_t nmemb, size_t size) {
     return NULL;
 }
 
-void *mycalloc(size_t nmemb, size_t size)
-{
-    return NULL;
+void myfree(void *ptr) {
 }
 
-void myfree(void *ptr)
-{
-}
-
-void *myrealloc(void *ptr, size_t size)
-{
+void *myrealloc(void *ptr, size_t size) { 
     return NULL;
 }
 

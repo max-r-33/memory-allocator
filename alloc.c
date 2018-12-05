@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 void *mymalloc(size_t size) {
+    if(size == 0) return (void*)((int)sbrk(0) + 1);
     void *currentBreak = sbrk(0); // getting current break
     int newAddr = ((int)currentBreak + size);
     int amtToIncrease = 0;

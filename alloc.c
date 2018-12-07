@@ -42,26 +42,25 @@ void *mymalloc(size_t size) {
       if(spot) {
         spot->is_free = 0;
         return (void *)(spot + 1);
-      } else {
-        // if no fit found, create a new block to add to heap
-        struct obj_metadata *newBlock;
-        int blockSize = requiredSize + sizeof newBlock;
-        void *newAddr = sbrk(blockSize);
-        newBlock->size = blockSize;
-        newBlock->next = NULL;
-        newBlock->prev = NULL;
-        newBlock->is_free = 0;
-        if(!heapStart) {
-          heapStart = newBlock;
-        }
-        // updating end of list to point to 
-        struct obj_metadata *curr = start;
-        while(curr->next) {
-          curr = curr->next;
-        }
-        curr->next = newBlock;
-        return (void *)(newBlock + 1);
-      }      
+      }
+      // if no fit found, create a new block to add to heap
+      struct obj_metadata *newBlock;
+      int blockSize = requiredSize + sizeof newBlock;
+      void *newAddr = sbrk(blockSize);
+      newBlock->size = blockSize;
+      newBlock->next = NULL;
+      newBlock->prev = NULL;
+      newBlock->is_free = 0;
+      if(!heapStart) {
+        heapStart = newBlock;
+      }
+      // updating end of list to point to 
+      struct obj_metadata *curr = start;
+      while(curr->next) {
+        curr = curr->next;
+      }
+      curr->next = newBlock;
+      return (void *)(newBlock + 1);
     }
 }
 

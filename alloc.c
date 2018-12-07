@@ -49,9 +49,28 @@ void memory_stats() {
 struct obj_metadata *find_block(size_t size) {
   struct obj_metadata *curr = heapStart;
   while(curr) {
-    if(curr->is_free && curr->size >= size) {
-      printf("FOUND FREE SPOT");
-      curr->is_free = 0;
+    // if we need to split
+    if(curr->is_free && (curr->size - (size_t)(sizeof(struct obj_metadata))) >= size) {
+      printf("mymalloc FOUND FREE SPOT\n");
+      size_t aligned_size = size + (8 - (8 % size));
+      if(aligned_size < curr->size) {
+        void *new_addr = (void *)(curr + aligned_size + 1);
+        printf("OLD ADDRESS %p", curr);
+        printf("NEW ADDRESS %p", new_addr);
+        struct obj_metadata *split_block = new_addr;
+        split_block->size = (size_t)(curr->size - aligned_size);
+        split_block->is_free = 1;
+        split_block->next = curr->next;
+        split_block->prev = curr;
+        curr->next = (void *)curr + aligned_size;
+        curr->size = aligned_size;
+        curr->is_free = 0;
+        struct obj_metadata *testing = new_addr;
+        printf("prev @ specific addr : %p", testing->prev);
+        // printf("old start %p\t new block start %p\t aligned_size %ld\n\n", curr, new_addr, aligned_size);
+        return curr;
+      }
+    } else if(curr->is_free && curr->size >= size) {
       return curr;
     }
     curr = curr->next;
@@ -82,7 +101,7 @@ void *mymalloc(size_t size) {
       // if no fit found, create a new block to add to heap
       size_t blockSize = requiredSize + sizeof(struct obj_metadata);
       spot = sbrk(blockSize);
-      spot->size = size;
+      spot->size = blockSize;
       spot->next = NULL;
       spot->prev = NULL;
       spot->is_free = 0;
@@ -100,7 +119,6 @@ void *mymalloc(size_t size) {
 
       heapEnd = spot;
     }
-
     return (void *)(spot + 1);
 }
 
@@ -129,28 +147,6 @@ void myfree(void *ptr) {
   curr = heapStart;
   printf("MEMORY BEFORE COALESCE\n");
   memory_stats();
-  // print_memory();
-  // while(curr) {
-  //   if(curr->is_free) {
-  //     int merged_next = 0;
-  //     if(curr->next->is_free) {
-  //       printf("merging next and curr\n");
-  //       // print_block(curr);
-  //       curr->next = curr->next->next;
-  //       curr->size += curr->next->size;
-  //       // print_block(curr);
-  //       merged_next = 1;
-  //     }
-  //     if(curr->prev && curr->prev->is_free) {
-  //       printf("merging prev and curr\n");
-  //       curr->prev->next = curr->next;
-  //       curr->prev->size += curr->size;
-  //     }
-  //     curr = merged_next ? curr->next->next : curr;
-  //   } else {
-  //     curr = curr->next;
-  //   }
-  // }
   while(curr->next) {
     if(curr->is_free && curr->next->is_free) {
       curr->size += curr->next->size;

@@ -10,39 +10,58 @@ struct obj_metadata {
   int is_free;
 };
 
-void *heapStart;
+struct obj_metadata *heapStart = NULL;
+
+struct obj_metadata *find_block(size_t size) {
+  struct obj_metadata *curr = heapStart;
+  while(curr) {
+    if(curr->is_free && curr->size <= size) {
+      curr->is_free = 0;
+      return curr;
+    }
+    curr = curr->next;
+  }
+  return NULL;
+}
+
 
 void *mymalloc(size_t size) {
-    struct obj_metadata *curr = heapStart;
+    struct obj_metadata *start = heapStart;
+    
     if(size == 0) {
       // go through the heap and find the next available spot of any size
+      struct obj_metadata *curr = start;
       while(curr->next) {
         if(curr->is_free) {
           return curr;
         }
       }
     } else {
-      // go through heap and look for first fitting spot
       int requiredSize = size + (8 - (size % 8)); // 8 bit aligned
-      while(curr->next) {
-        if(curr->is_free && curr->size <= (size_t)requiredSize) {
-          curr->is_free = 0;
-          return curr;
+      struct obj_metadata *spot = find_block(requiredSize);
+      if(spot) {
+        spot->is_free = 0;
+        return (void *)(spot + 1);
+      } else {
+        // if no fit found, create a new block to add to heap
+        struct obj_metadata *newBlock;
+        int blockSize = requiredSize + sizeof newBlock;
+        void *newAddr = sbrk(blockSize);
+        newBlock->size = blockSize;
+        newBlock->next = NULL;
+        newBlock->prev = NULL;
+        newBlock->is_free = 0;
+        if(!heapStart) {
+          heapStart = newBlock;
         }
-        curr = curr->next;
-      }
-      
-      // if no fit found, create a new block to add to heap
-      struct obj_metadata newBlock;
-      void *currentBreak = sbrk(0);                           // get current break
-      int blockSize = requiredSize + sizeof newBlock;        // 
-      void *newAddr = sbrk(blockSize);                        // allocate appropriately sized block
-      curr->next = newAddr;                                   // pointing the previous end of the heap to the new block
-      newBlock.size = blockSize;
-      newBlock.next = NULL;
-      newBlock.prev = curr;
-      newBlock.is_free = 0;
-      return newAddr;
+        // updating end of list to point to 
+        struct obj_metadata *curr = start;
+        while(curr->next) {
+          curr = curr->next;
+        }
+        curr->next = newBlock;
+        return (void *)(newBlock + 1);
+      }      
     }
 }
 

@@ -66,9 +66,12 @@ void *mymalloc(size_t size) {
 
 void *mycalloc(size_t nmemb, size_t size) {
     size_t memsize = nmemb * size; // finding full size of memory to alloc
-    void *ptr = mymalloc(memsize); // alloc with mymalloc
-    memset(ptr, 0, memsize); // zeroing out newly allocated mem
-    return ptr ? ptr : NULL; // if myalloc worked, return ptr, otherwise NULL
+    if(memsize) {
+      void *ptr = mymalloc(memsize); // alloc with mymalloc
+      memset(ptr, 0, memsize); // zeroing out newly allocated mem
+      return ptr ? ptr : NULL; // if myalloc worked, return ptr, otherwise NULL
+    }
+    return NULL;
 }
 
 void myfree(void *ptr) {

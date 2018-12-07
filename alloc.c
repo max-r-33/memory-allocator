@@ -11,6 +11,7 @@ struct obj_metadata {
 };
 
 struct obj_metadata *heapStart = NULL;
+struct obj_metadata *heapEnd   = NULL;
 
 struct obj_metadata *find_block(size_t size) {
   struct obj_metadata *curr = heapStart;
@@ -27,7 +28,6 @@ struct obj_metadata *find_block(size_t size) {
 
 void *mymalloc(size_t size) {
     struct obj_metadata *start = heapStart;
-    
     if(size == 0) {
       // go through the heap and find the next available spot of any size
       struct obj_metadata *curr = start;
@@ -36,33 +36,32 @@ void *mymalloc(size_t size) {
           return curr;
         }
       }
-    } else {
-      size_t requiredSize = size + (8 - (size % 8)); // 8 bit aligned
-      struct obj_metadata *spot = find_block(requiredSize);
-      if(spot) {
-        spot->is_free = 0;
-        return (void *)(spot + 1);
-      }
-      
-      // if no fit found, create a new block to add to heap
-      struct obj_metadata *newBlock;
-      int blockSize = requiredSize + sizeof newBlock;
-      void *newAddr = sbrk(blockSize);
-      newBlock->size = blockSize;
-      newBlock->next = NULL;
-      newBlock->prev = NULL;
-      newBlock->is_free = 0;
-      if(!heapStart) {
-        heapStart = newBlock;
-      }
-      // updating end of list to point to 
-      struct obj_metadata *curr = start;
-      while(curr->next) {
-        curr = curr->next;
-      }
-      curr->next = newBlock;
-      return (void *)(newBlock + 1);
     }
+
+    size_t requiredSize = size + (8 - (size % 8)); // 8 bit aligned
+    struct obj_metadata *spot = find_block(requiredSize);
+
+    if(spot) {
+      spot->is_free = 0;
+    } else {
+      // if no fit found, create a new block to add to heap
+      size_t blockSize = requiredSize + sizeof(struct obj_metadata);
+      spot = sbrk(blockSize);
+      spot->size = size;
+      spot->next = NULL;
+      spot->prev = NULL;
+      spot->is_free = 0;
+
+      if(!heapStart) {
+        heapStart = spot;
+      }
+
+      if(heapEnd) {
+        heapEnd->next = spot;
+        spot->prev = heapEnd;
+      }
+    }
+    return (void *)(spot + 1);
 }
 
 void *mycalloc(size_t nmemb, size_t size) {
@@ -75,7 +74,7 @@ void *mycalloc(size_t nmemb, size_t size) {
 void myfree(void *ptr) {
 }
 
-void *myrealloc(void *ptr, size_t size) { 
+void *myrealloc(void *ptr, size_t size) {
     return NULL;
 }
 

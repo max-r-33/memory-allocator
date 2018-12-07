@@ -3,3 +3,6 @@ alloc.d
 libmyalloc.so
 alloc.o
 test_framework/main.d
+*.d
+*.o
+./test

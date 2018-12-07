@@ -28,7 +28,6 @@ void print_memory() {
 }
 
 void print_block(struct obj_metadata *block) {
-  printf("BLOCK\n");
   printf("addr: %p\n", (void *)block);
   printf("size: %li\n", block->size);
   printf("is_free: %i\n", block->is_free);
@@ -44,7 +43,7 @@ void memory_stats() {
     count++;
     curr = curr->next;
   }
-  printf("NUMBER OF OBJECTS IN MEM: %i", count);
+  printf("NUMBER OF OBJECTS IN MEM: %i\n", count);
 }
 
 struct obj_metadata *find_block(size_t size) {

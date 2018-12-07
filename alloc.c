@@ -25,6 +25,30 @@ struct obj_metadata *find_block(size_t size) {
   return NULL;
 }
 
+void print_memory() {
+  struct obj_metadata *curr = heapStart;
+  printf("MEMORY:\n");
+  while(curr) {
+    printf("size: %li\n", curr->size);
+    printf("is_free: %i\n", curr->is_free);
+    printf("---\n");
+    curr = curr->next;
+  }
+}
+
+void coalesce_blocks() {
+  struct obj_metadata *curr = heapStart;
+  printf("coalesce_blocks\n");
+  while(curr) {
+    if(curr->is_free && curr->next->is_free) {
+      curr->next = curr->next->next;
+      curr->size += curr->next->size;
+      curr->is_free = 1;
+    }
+    curr = curr->next;
+  }
+  // print_memory();
+}
 
 void *mymalloc(size_t size) {
     struct obj_metadata *start = heapStart;
@@ -35,7 +59,9 @@ void *mymalloc(size_t size) {
         if(curr->is_free) {
           return curr;
         }
+        curr = curr->next;
       }
+      return sbrk(0);
     }
 
     size_t requiredSize = size + (8 - (size % 8)); // 8 bit aligned
@@ -59,8 +85,12 @@ void *mymalloc(size_t size) {
       if(heapEnd) {
         heapEnd->next = spot;
         spot->prev = heapEnd;
+        heapEnd->next = spot;
       }
+      heapEnd = spot;
+      print_memory();
     }
+
     return (void *)(spot + 1);
 }
 
@@ -75,10 +105,40 @@ void *mycalloc(size_t nmemb, size_t size) {
 }
 
 void myfree(void *ptr) {
+  struct obj_metadata *curr = heapStart;
+
+  while(curr) {
+    if(curr == ptr) {
+      curr->is_free = 1;
+      return;
+    }
+    curr = curr->next;
+  }
+
+  curr = heapStart;
+  while(curr->next) {
+    if(curr->is_free && curr->next->is_free) {
+      printf("merging blocks\n");
+      curr->next = curr->next->next;
+      curr->size += curr->next->size;
+      curr->is_free = 1;
+    }
+    curr = curr->next;
+  }
+
 }
 
 void *myrealloc(void *ptr, size_t size) {
-    return NULL;
+    if(!ptr || !size) return mymalloc(size);
+
+    struct obj_metadata *curr = (struct obj_metadata *)ptr - 1;
+    // if the new size is bigger, do nothing and return the original block
+    if(curr->size >= size) return ptr;
+
+    void *newAddr;
+    newAddr = mymalloc(size);
+    memcpy(newAddr, ptr, curr->size);
+    return newAddr;
 }
 
 

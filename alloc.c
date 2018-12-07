@@ -13,10 +13,45 @@ struct obj_metadata {
 struct obj_metadata *heapStart = NULL;
 struct obj_metadata *heapEnd   = NULL;
 
+void print_memory() {
+  struct obj_metadata *curr = heapStart;
+  printf("MEMORY:\n");
+  while(curr) {
+    printf("addr: %p\n", (void *)curr);
+    printf("size: %li\n", curr->size);
+    printf("is_free: %i\n", curr->is_free);
+    printf("prev: %p\n", curr->prev);
+    printf("next: %p\n", curr->next);
+    printf("---\n");
+    curr = curr->next;
+  }
+}
+
+void print_block(struct obj_metadata *block) {
+  printf("BLOCK\n");
+  printf("addr: %p\n", (void *)block);
+  printf("size: %li\n", block->size);
+  printf("is_free: %i\n", block->is_free);
+  printf("prev: %p\n", block->prev);
+  printf("next: %p\n", block->next);
+  printf("---\n");
+}
+
+void memory_stats() {
+  struct obj_metadata *curr = heapStart;
+  int count = 0;
+  while(curr) {
+    count++;
+    curr = curr->next;
+  }
+  printf("NUMBER OF OBJECTS IN MEM: %i", count);
+}
+
 struct obj_metadata *find_block(size_t size) {
   struct obj_metadata *curr = heapStart;
   while(curr) {
-    if(curr->is_free && curr->size <= size) {
+    if(curr->is_free && curr->size >= size) {
+      printf("FOUND FREE SPOT");
       curr->is_free = 0;
       return curr;
     }
@@ -25,34 +60,9 @@ struct obj_metadata *find_block(size_t size) {
   return NULL;
 }
 
-void print_memory() {
-  struct obj_metadata *curr = heapStart;
-  printf("MEMORY:\n");
-  while(curr) {
-    printf("size: %li\n", curr->size);
-    printf("is_free: %i\n", curr->is_free);
-    printf("---\n");
-    curr = curr->next;
-  }
-}
-
-void coalesce_blocks() {
-  struct obj_metadata *curr = heapStart;
-  printf("coalesce_blocks\n");
-  while(curr) {
-    if(curr->is_free && curr->next->is_free) {
-      curr->next = curr->next->next;
-      curr->size += curr->next->size;
-      curr->is_free = 1;
-    }
-    curr = curr->next;
-  }
-  // print_memory();
-}
-
 void *mymalloc(size_t size) {
     struct obj_metadata *start = heapStart;
-    if(size == 0) {
+    if(size <= 0) {
       // go through the heap and find the next available spot of any size
       struct obj_metadata *curr = start;
       while(curr->next) {
@@ -66,8 +76,8 @@ void *mymalloc(size_t size) {
 
     size_t requiredSize = size + (8 - (size % 8)); // 8 bit aligned
     struct obj_metadata *spot = find_block(requiredSize);
-
     if(spot) {
+      print_block(spot);
       spot->is_free = 0;
     } else {
       // if no fit found, create a new block to add to heap
@@ -80,15 +90,16 @@ void *mymalloc(size_t size) {
 
       if(!heapStart) {
         heapStart = spot;
+      } else if(heapStart && !heapStart->next) {
+        heapStart->next = spot;
       }
 
       if(heapEnd) {
-        heapEnd->next = spot;
+        heapEnd->next = (void *)spot;
         spot->prev = heapEnd;
-        heapEnd->next = spot;
       }
+
       heapEnd = spot;
-      print_memory();
     }
 
     return (void *)(spot + 1);
@@ -106,9 +117,10 @@ void *mycalloc(size_t nmemb, size_t size) {
 
 void myfree(void *ptr) {
   struct obj_metadata *curr = heapStart;
+  struct obj_metadata *ptr_meta = (struct obj_metadata *)ptr - 1;
 
-  while(curr) {
-    if(curr == ptr) {
+  while(curr->next) {
+    if(curr == ptr_meta) {
       curr->is_free = 1;
       return;
     }
@@ -116,15 +128,45 @@ void myfree(void *ptr) {
   }
 
   curr = heapStart;
+  printf("MEMORY BEFORE COALESCE\n");
+  memory_stats();
+  // print_memory();
+  // while(curr) {
+  //   if(curr->is_free) {
+  //     int merged_next = 0;
+  //     if(curr->next->is_free) {
+  //       printf("merging next and curr\n");
+  //       // print_block(curr);
+  //       curr->next = curr->next->next;
+  //       curr->size += curr->next->size;
+  //       // print_block(curr);
+  //       merged_next = 1;
+  //     }
+  //     if(curr->prev && curr->prev->is_free) {
+  //       printf("merging prev and curr\n");
+  //       curr->prev->next = curr->next;
+  //       curr->prev->size += curr->size;
+  //     }
+  //     curr = merged_next ? curr->next->next : curr;
+  //   } else {
+  //     curr = curr->next;
+  //   }
+  // }
   while(curr->next) {
     if(curr->is_free && curr->next->is_free) {
-      printf("merging blocks\n");
-      curr->next = curr->next->next;
       curr->size += curr->next->size;
-      curr->is_free = 1;
+      curr->next = curr->next->next;
+      if(curr->next) {
+        curr->next->prev = curr;
+      }
+    } else {
+      curr = curr->next;
     }
-    curr = curr->next;
   }
+
+  printf("MEMORY AFTER COALESCE\n");
+  memory_stats();
+  print_memory();
 
 }
 

@@ -3,17 +3,47 @@
 #include <string.h>
 #include <unistd.h>
 
-void *mymalloc(size_t size) {
-    if(size == 0) return (void*)((int)sbrk(0) + 1); // if size is 0, return next free addr
-    void *currentBreak = sbrk(0); // getting current break
-    int newAddr = ((int)currentBreak + size); // finding new address
-    int amtToIncrease = 0; // used for 8 bit alignment
+struct obj_metadata {
+  size_t size;
+  struct obj_metadata *next;
+  struct obj_metadata *prev;
+  int is_free;
+};
 
-    if(newAddr % 8 != 0) { // checking if 8bit aligned
-      amtToIncrease = (8-(newAddr % 8));
+void *heapStart;
+
+void *mymalloc(size_t size) {
+    struct obj_metadata *curr = heapStart;
+    if(size == 0) {
+      // go through the heap and find the next available spot of any size
+      while(curr->next) {
+        if(curr->is_free) {
+          return curr;
+        }
+      }
+    } else {
+      // go through heap and look for first fitting spot
+      int requiredSize = size + (8 - (size % 8)); // 8 bit aligned
+      while(curr->next) {
+        if(curr->is_free && curr->size <= (size_t)requiredSize) {
+          curr->is_free = 0;
+          return curr;
+        }
+        curr = curr->next;
+      }
+      
+      // if no fit found, create a new block to add to heap
+      struct obj_metadata newBlock;
+      void *currentBreak = sbrk(0);                           // get current break
+      int blockSize = requiredSize + sizeof newBlock;        // 
+      void *newAddr = sbrk(blockSize);                        // allocate appropriately sized block
+      curr->next = newAddr;                                   // pointing the previous end of the heap to the new block
+      newBlock.size = blockSize;
+      newBlock.next = NULL;
+      newBlock.prev = curr;
+      newBlock.is_free = 0;
+      return newAddr;
     }
-    
-    return sbrk(size + amtToIncrease);
 }
 
 void *mycalloc(size_t nmemb, size_t size) {

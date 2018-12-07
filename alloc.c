@@ -37,12 +37,13 @@ void *mymalloc(size_t size) {
         }
       }
     } else {
-      int requiredSize = size + (8 - (size % 8)); // 8 bit aligned
+      size_t requiredSize = size + (8 - (size % 8)); // 8 bit aligned
       struct obj_metadata *spot = find_block(requiredSize);
       if(spot) {
         spot->is_free = 0;
         return (void *)(spot + 1);
       }
+      
       // if no fit found, create a new block to add to heap
       struct obj_metadata *newBlock;
       int blockSize = requiredSize + sizeof newBlock;

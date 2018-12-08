@@ -10,12 +10,13 @@ struct obj_metadata {
   int is_free;
 };
 
-struct obj_metadata *heapStart = NULL;
-struct obj_metadata *heapEnd   = NULL;
-int    heapSize                = 0;
+struct obj_metadata *heapStart  = NULL;
+struct obj_metadata *heapEnd    = NULL;
+struct obj_metadata *freeBlocks = NULL;
+int    heapSize                 = 0;
 
-void print_memory() {
-  struct obj_metadata *curr = heapStart;
+void print_memory(struct obj_metadata *heap) {
+  struct obj_metadata *curr = heap;
   printf("MEMORY:\n");
   while(curr) {
     printf("addr: %p\n", (void *)curr);
@@ -86,7 +87,7 @@ void *mymalloc(size_t size) {
     }
 
     size_t requiredSize = size + (8 - (size % 8)); // 8 bit aligned
-    struct obj_metadata *spot = heapSize < 10000 ? find_block(requiredSize) : NULL;
+    struct obj_metadata *spot = freeBlocks ? freeBlocks : find_block(requiredSize);
     if(!spot) {
       // if no fit found, create a new block to add to heap
       size_t blockSize = requiredSize + sizeof(struct obj_metadata);
@@ -148,6 +149,25 @@ void myfree(void *ptr) {
   }
 
   curr = heapStart;
+  while(curr->next) {
+    if(curr->is_free) {
+      struct obj_metadata *currFree = freeBlocks;
+      if(currFree) {
+        while(currFree->next) {
+          currFree = currFree->next;
+        }
+        currFree->next = curr;
+        currFree->next->prev = freeBlocks;
+      } else {
+        currFree = curr;
+        currFree->next = NULL;
+        currFree->prev = NULL;
+      }
+    }
+    curr = curr->next;
+  }
+  print_memory(freeBlocks);
+
   if(heapEnd->is_free) {
     heapEnd = heapEnd->prev;
     heapEnd->next = NULL;

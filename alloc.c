@@ -52,7 +52,6 @@ struct obj_metadata *find_block(size_t size) {
     // if we need to split
     if(curr->is_free && (curr->size - (size_t)(sizeof(struct obj_metadata))) >= size) {
       size_t aligned_size = size + (8 - (8 % size));
-      printf("Splitting!");
       if(aligned_size < curr->size) {
         void *new_addr = (void *)(curr + aligned_size + 1);
         ((struct obj_metadata *)new_addr)->size =  (size_t)(curr->size - aligned_size);
@@ -60,6 +59,7 @@ struct obj_metadata *find_block(size_t size) {
         ((struct obj_metadata *)new_addr)->next = curr->next;
         ((struct obj_metadata *)new_addr)->prev = curr;
         curr->next = new_addr; //(void *)curr + aligned_size;
+        curr->next->next->prev = new_addr;
         curr->size = aligned_size;
         curr->is_free = 0;
         printf("curr address %p\n", curr);

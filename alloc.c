@@ -39,7 +39,8 @@ void print_block(struct obj_metadata *block) {
 void memory_stats() {
   struct obj_metadata *curr = heapStart;
   int count = 0;
-  while(curr) {
+  printf("curr: %p and curr->next %p", curr, curr->next);
+  while(curr->next) {
     count++;
     curr = curr->next;
   }
@@ -72,12 +73,11 @@ struct obj_metadata *find_block(size_t size) {
     }
     curr = curr->next;
   }
-  if(!heapStart || !heapStart->next) print_memory();
   return NULL;
 }
 
 void *mymalloc(size_t size) {
-    printf("sbrk(0) %p and heapStart %p", sbrk(0), heapStart);
+    printf("MALLOC %li", size);
     struct obj_metadata *start = heapStart;
     if(size <= 0) {
       // go through the heap and find the next available spot of any size
@@ -100,15 +100,11 @@ void *mymalloc(size_t size) {
     } else {
       // if no fit found, create a new block to add to heap
       size_t blockSize = requiredSize + sizeof(struct obj_metadata);
-      printf("NEW BLOCK SIZE %li", blockSize);
       spot = sbrk(blockSize);
-      if(spot == (void *)-1) printf("ERROR");
-      printf("%p", spot);
       spot->size = blockSize;
       spot->next = NULL;
       spot->prev = NULL;
       spot->is_free = 0;
-      printf("SPOT SET UP");
       if(!heapStart) {
         heapStart = spot;
       } else if(heapStart && !heapStart->next) {
@@ -165,17 +161,11 @@ void myfree(void *ptr) {
   }
 
   curr = heapStart;
-  while(curr->is_free && curr->next) {
-      printf("freeing mem");
-      heapStart = curr->next;
-      if(brk(heapStart) == 0) {
-        printf("new brk set to %p", sbrk(0));
-        heapStart->prev = NULL;
-      }
-      if(heapStart->next == NULL) {
-        heapEnd = NULL;
-      }
-      curr = curr->next;
+  if(heapEnd->is_free) {
+    printf("freeing up heap End!\n");
+    heapEnd = heapEnd->prev;
+    heapEnd->next = NULL;
+    sbrk(-1 * heapEnd->size);
   }
 
   printf("MEMORY AFTER COALESCE\n");

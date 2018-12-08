@@ -43,12 +43,11 @@ void memory_stats() {
     count++;
     curr = curr->next;
   }
-  printf("NUMBER OF OBJECTS IN MEM: %i\n", count);
 }
 
 struct obj_metadata *find_block(size_t size) {
   struct obj_metadata *curr = heapStart;
-  while(curr) {
+  while(curr && curr->next) {
     // if we need to split
     if(curr->is_free && (curr->size - (size_t)(sizeof(struct obj_metadata))) >= size) {
       size_t aligned_size = size + (8 - (8 % size));
@@ -73,10 +72,12 @@ struct obj_metadata *find_block(size_t size) {
     }
     curr = curr->next;
   }
+  if(!heapStart || !heapStart->next) print_memory();
   return NULL;
 }
 
 void *mymalloc(size_t size) {
+    printf("sbrk(0) %p and heapStart %p", sbrk(0), heapStart);
     struct obj_metadata *start = heapStart;
     if(size <= 0) {
       // go through the heap and find the next available spot of any size
@@ -99,12 +100,15 @@ void *mymalloc(size_t size) {
     } else {
       // if no fit found, create a new block to add to heap
       size_t blockSize = requiredSize + sizeof(struct obj_metadata);
+      printf("NEW BLOCK SIZE %li", blockSize);
       spot = sbrk(blockSize);
+      if(spot == (void *)-1) printf("ERROR");
+      printf("%p", spot);
       spot->size = blockSize;
       spot->next = NULL;
       spot->prev = NULL;
       spot->is_free = 0;
-
+      printf("SPOT SET UP");
       if(!heapStart) {
         heapStart = spot;
       } else if(heapStart && !heapStart->next) {
@@ -115,7 +119,8 @@ void *mymalloc(size_t size) {
         heapEnd->next = (void *)spot;
         spot->prev = heapEnd;
       }
-
+      printf("HELLO! FROM the end of malloc %li", size);
+      memory_stats();
       heapEnd = spot;
     }
     return (void *)(spot + 1);
@@ -146,6 +151,7 @@ void myfree(void *ptr) {
   curr = heapStart;
   printf("MEMORY BEFORE COALESCE\n");
   memory_stats();
+  print_memory();
   while(curr->next) {
     if(curr->is_free && curr->next->is_free) {
       curr->size += curr->next->size;
@@ -158,10 +164,23 @@ void myfree(void *ptr) {
     }
   }
 
+  curr = heapStart;
+  while(curr->is_free && curr->next) {
+      printf("freeing mem");
+      heapStart = curr->next;
+      if(brk(heapStart) == 0) {
+        printf("new brk set to %p", sbrk(0));
+        heapStart->prev = NULL;
+      }
+      if(heapStart->next == NULL) {
+        heapEnd = NULL;
+      }
+      curr = curr->next;
+  }
+
   printf("MEMORY AFTER COALESCE\n");
   memory_stats();
   print_memory();
-
 }
 
 void *myrealloc(void *ptr, size_t size) {

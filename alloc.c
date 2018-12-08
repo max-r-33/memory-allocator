@@ -10,8 +10,8 @@ struct obj_metadata {
   int is_free;
 };
 
-struct obj_metadata *heapStart = NULL;
-struct obj_metadata *heapEnd   = NULL;
+struct obj_metadata *heapStart = NULL; // start of heap
+struct obj_metadata *heapEnd   = NULL; // end of heap
 
 void print_memory() {
   struct obj_metadata *curr = heapStart;
@@ -50,26 +50,49 @@ struct obj_metadata *find_block(size_t size) {
   struct obj_metadata *curr = heapStart;
   while(curr) {
     // if we need to split
-    if(curr->is_free && (curr->size - (size_t)(sizeof(struct obj_metadata))) >= size) {
-      size_t aligned_size = size + (8 - (8 % size));
-      printf("Splitting!");
-      if(aligned_size < curr->size) {
-        void *new_addr = (void *)(curr + aligned_size + 1);
-        ((struct obj_metadata *)new_addr)->size =  (size_t)(curr->size - aligned_size);
-        ((struct obj_metadata *)new_addr)->is_free = 1;
-        ((struct obj_metadata *)new_addr)->next = curr->next;
-        ((struct obj_metadata *)new_addr)->prev = curr;
-        curr->next = new_addr; //(void *)curr + aligned_size;
-        curr->size = aligned_size;
-        curr->is_free = 0;
-        printf("curr address %p\n", curr);
-        printf("algined size %li\n", aligned_size);
-        printf("curr start %p and end %p\n", curr, new_addr - 1);
-        printf("split block start %p and end %p\n", new_addr, new_addr + ((struct obj_metadata *)new_addr)->size);
-        printf("split block size  %li\n", ((struct obj_metadata *)new_addr)->size);
-        // printf("split block start %p and end %p\n", split_block, split_block + split_block->size);
-        return curr;
-      }
+    // size_t occupiable_space = curr->size - (size_t)(sizeof(struct obj_metadata));
+    size_t aligned_size = size + (8 - (8 % size));
+    // printf("occupiable_space %li\naligned_size %li", occupiable_space, aligned_size);
+    // if(curr->is_free && (aligned_size < occupiable_space)) {
+    //   if((occupiable_space / 2) > aligned_size) {
+    //     printf("splitting occupiable space in half to %i", (int)(occupiable_space / 2));
+    //     // split current block in two and fill first half
+    //     void *new_addr = (void *)(curr + (int)(curr->size / 2));
+    //     struct obj_metadata *empty_block = ((struct obj_metadata *)new_addr);
+    //     empty_block->size = (curr->size)/2;
+    //     empty_block->is_free = 1;
+    //     empty_block->next = curr->next;
+    //     empty_block->prev = curr;
+    //     curr->next = new_addr;
+    //     curr->size = (size_t)(curr->size / 2);
+    //     curr->is_free = 0;
+    //     // printf("curr address %p\n", curr);
+    //     // printf("algined size %li\n", aligned_size);
+    //     // printf("curr start %p and end %p\n", curr, new_addr - 1);
+    //     // printf("split block start %p and end %p\n", new_addr, new_addr + ((struct obj_metadata *)new_addr)->size);
+    //     // printf("split block size  %li\n", ((struct obj_metadata *)new_addr)->size);
+    //     return curr;
+    //   } else {
+    //     printf("not splitting size");
+    //     return curr;
+    //   }
+    // }
+    if(aligned_size < curr->size) {
+      void *new_addr = (void *)(curr + aligned_size + 1);
+      ((struct obj_metadata *)new_addr)->size =  (size_t)(curr->size - aligned_size);
+      ((struct obj_metadata *)new_addr)->is_free = 1;
+      ((struct obj_metadata *)new_addr)->next = curr->next;
+      ((struct obj_metadata *)new_addr)->prev = curr;
+      curr->next = new_addr;
+      curr->size = aligned_size;
+      curr->is_free = 0;
+      printf("curr address %p\n", curr);
+      printf("algined size %li\n", aligned_size);
+      printf("curr start %p and end %p\n", curr, new_addr - 1);
+      printf("split block start %p and end %p\n", new_addr, new_addr + ((struct obj_metadata *)new_addr)->size);
+      printf("split block size  %li\n", ((struct obj_metadata *)new_addr)->size);
+      // printf("split block start %p and end %p\n", split_block, split_block + split_block->size);
+      return curr;
     }
     curr = curr->next;
   }
@@ -145,6 +168,7 @@ void myfree(void *ptr) {
 
   curr = heapStart;
   printf("MEMORY BEFORE COALESCE\n");
+  print_memory();
   memory_stats();
   while(curr->next) {
     if(curr->is_free && curr->next->is_free) {

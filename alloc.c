@@ -12,6 +12,7 @@ struct obj_metadata {
 
 struct obj_metadata *heapStart = NULL;
 struct obj_metadata *heapEnd   = NULL;
+int    heapSize                = 0;
 
 void print_memory() {
   struct obj_metadata *curr = heapStart;
@@ -92,11 +93,11 @@ void *mymalloc(size_t size) {
     }
 
     size_t requiredSize = size + (8 - (size % 8)); // 8 bit aligned
-    struct obj_metadata *spot = find_block(requiredSize);
+    struct obj_metadata *spot = heapSize < 100000 ? find_block(requiredSize) : NULL;
     if(spot) {
-      print_block(spot);
+      // print_block(spot);
       printf("\n\nPrinting memory:");
-      print_memory();
+      // print_memory();
     } else {
       // if no fit found, create a new block to add to heap
       size_t blockSize = requiredSize + sizeof(struct obj_metadata);
@@ -115,8 +116,7 @@ void *mymalloc(size_t size) {
         heapEnd->next = (void *)spot;
         spot->prev = heapEnd;
       }
-      printf("HELLO! FROM the end of malloc %li", size);
-      memory_stats();
+      heapSize++;
       heapEnd = spot;
     }
     return (void *)(spot + 1);
@@ -145,13 +145,14 @@ void myfree(void *ptr) {
   }
 
   curr = heapStart;
-  printf("MEMORY BEFORE COALESCE\n");
-  memory_stats();
-  print_memory();
+  // printf("MEMORY BEFORE COALESCE\n");
+  // memory_stats();
+  // print_memory();
   while(curr->next) {
     if(curr->is_free && curr->next->is_free) {
       curr->size += curr->next->size;
       curr->next = curr->next->next;
+      heapSize--;
       if(curr->next) {
         curr->next->prev = curr;
       }
@@ -168,9 +169,9 @@ void myfree(void *ptr) {
     sbrk(-1 * heapEnd->size);
   }
 
-  printf("MEMORY AFTER COALESCE\n");
-  memory_stats();
-  print_memory();
+  // printf("MEMORY AFTER COALESCE\n");
+  // memory_stats();
+  // print_memory();
 }
 
 void *myrealloc(void *ptr, size_t size) {

@@ -51,27 +51,25 @@ struct obj_metadata *find_block(size_t size) {
   while(curr) {
     // if we need to split
     if(curr->is_free && (curr->size - (size_t)(sizeof(struct obj_metadata))) >= size) {
-      printf("mymalloc FOUND FREE SPOT\n");
       size_t aligned_size = size + (8 - (8 % size));
+      printf("Splitting!");
       if(aligned_size < curr->size) {
         void *new_addr = (void *)(curr + aligned_size + 1);
-        printf("OLD ADDRESS %p", curr);
-        printf("NEW ADDRESS %p", new_addr);
-        struct obj_metadata *split_block = new_addr;
-        split_block->size = (size_t)(curr->size - aligned_size);
-        split_block->is_free = 1;
-        split_block->next = curr->next;
-        split_block->prev = curr;
-        curr->next = (void *)curr + aligned_size;
+        ((struct obj_metadata *)new_addr)->size =  (size_t)(curr->size - aligned_size);
+        ((struct obj_metadata *)new_addr)->is_free = 1;
+        ((struct obj_metadata *)new_addr)->next = curr->next;
+        ((struct obj_metadata *)new_addr)->prev = curr;
+        curr->next = new_addr; //(void *)curr + aligned_size;
         curr->size = aligned_size;
         curr->is_free = 0;
-        struct obj_metadata *testing = new_addr;
-        printf("prev @ specific addr : %p", testing->prev);
-        // printf("old start %p\t new block start %p\t aligned_size %ld\n\n", curr, new_addr, aligned_size);
+        printf("curr address %p\n", curr);
+        printf("algined size %li\n", aligned_size);
+        printf("curr start %p and end %p\n", curr, new_addr - 1);
+        printf("split block start %p and end %p\n", new_addr, new_addr + ((struct obj_metadata *)new_addr)->size);
+        printf("split block size  %li\n", ((struct obj_metadata *)new_addr)->size);
+        // printf("split block start %p and end %p\n", split_block, split_block + split_block->size);
         return curr;
       }
-    } else if(curr->is_free && curr->size >= size) {
-      return curr;
     }
     curr = curr->next;
   }
@@ -96,7 +94,8 @@ void *mymalloc(size_t size) {
     struct obj_metadata *spot = find_block(requiredSize);
     if(spot) {
       print_block(spot);
-      spot->is_free = 0;
+      printf("\n\nPrinting memory:");
+      print_memory();
     } else {
       // if no fit found, create a new block to add to heap
       size_t blockSize = requiredSize + sizeof(struct obj_metadata);

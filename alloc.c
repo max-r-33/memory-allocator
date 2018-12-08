@@ -63,12 +63,6 @@ struct obj_metadata *find_block(size_t size) {
         curr->next->next->prev = new_addr;
         curr->size = aligned_size;
         curr->is_free = 0;
-        printf("curr address %p\n", curr);
-        printf("algined size %li\n", aligned_size);
-        printf("curr start %p and end %p\n", curr, new_addr - 1);
-        printf("split block start %p and end %p\n", new_addr, new_addr + ((struct obj_metadata *)new_addr)->size);
-        printf("split block size  %li\n", ((struct obj_metadata *)new_addr)->size);
-        // printf("split block start %p and end %p\n", split_block, split_block + split_block->size);
         return curr;
       }
     }
@@ -78,7 +72,6 @@ struct obj_metadata *find_block(size_t size) {
 }
 
 void *mymalloc(size_t size) {
-    printf("MALLOC %li", size);
     struct obj_metadata *start = heapStart;
     if(size <= 0) {
       // go through the heap and find the next available spot of any size
@@ -93,12 +86,8 @@ void *mymalloc(size_t size) {
     }
 
     size_t requiredSize = size + (8 - (size % 8)); // 8 bit aligned
-    struct obj_metadata *spot = heapSize < 100000 ? find_block(requiredSize) : NULL;
-    if(spot) {
-      // print_block(spot);
-      printf("\n\nPrinting memory:");
-      // print_memory();
-    } else {
+    struct obj_metadata *spot = heapSize < 10000 ? find_block(requiredSize) : NULL;
+    if(!spot) {
       // if no fit found, create a new block to add to heap
       size_t blockSize = requiredSize + sizeof(struct obj_metadata);
       spot = sbrk(blockSize);
@@ -145,9 +134,6 @@ void myfree(void *ptr) {
   }
 
   curr = heapStart;
-  // printf("MEMORY BEFORE COALESCE\n");
-  // memory_stats();
-  // print_memory();
   while(curr->next) {
     if(curr->is_free && curr->next->is_free) {
       curr->size += curr->next->size;
@@ -163,15 +149,10 @@ void myfree(void *ptr) {
 
   curr = heapStart;
   if(heapEnd->is_free) {
-    printf("freeing up heap End!\n");
     heapEnd = heapEnd->prev;
     heapEnd->next = NULL;
     sbrk(-1 * heapEnd->size);
   }
-
-  // printf("MEMORY AFTER COALESCE\n");
-  // memory_stats();
-  // print_memory();
 }
 
 void *myrealloc(void *ptr, size_t size) {

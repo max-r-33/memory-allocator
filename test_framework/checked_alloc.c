@@ -93,7 +93,7 @@ void *_checked_alloc(size_t nmemb, size_t size, enum allocator allocator)
         return buf;
     }
 
-    assert(buf, "Allocation of size %zu failed", size);
+    assert(buf, "Allocation of size %zu failed", alloc_size);
     pr_debug("mymalloc: Allocated %p\n", buf);
 
     if (allocator == ALLOC_MYCALLOC || allocator == ALLOC_SYSCALLOC) {
@@ -115,7 +115,7 @@ void *_checked_alloc(size_t nmemb, size_t size, enum allocator allocator)
     zero_sized_alloc = memlist_find_overlap(&zero_sized_allocs, alloc);
     assert(!zero_sized_alloc, "New allocation %p-%p overlaps with a pointer "
            "returned by a zero-sized allocation (%#lx, refcount=%lu)\n", buf,
-           buf + size, zero_sized_alloc->start, zero_sized_alloc->data);
+           buf + alloc_size, zero_sized_alloc->start, zero_sized_alloc->data);
 
     alloc->data = get_data();
     memset(buf, alloc->data, alloc_size);
@@ -132,8 +132,13 @@ void *checked_alloc_array(size_t nmemb, size_t size)
 
 void *checked_alloc(size_t size)
 {
+    size_t nmemb = 1;
     pr_debug("Allocating %zu bytes\n", size);
-    return _checked_alloc(1, size, ALLOC_DEFAULT);
+    if (size && (size & 1) == 0) {
+        size = size / 2;
+        nmemb = 2;
+    }
+    return _checked_alloc(nmemb, size, ALLOC_DEFAULT);
 }
 
 void _checked_free(void *ptr, enum allocator allocator)

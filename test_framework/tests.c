@@ -390,6 +390,18 @@ static void test_system_malloc(void)
     randomized_allocs(num_allocs, max_size, 1);
 }
 
+static void test_heap_fill(void)
+{
+    const size_t alloc_size = 8;
+    const size_t assumed_block_size = 64; /* Allow 56 byte metadata per obj. */
+    const size_t num_allocs = max_brk_size / assumed_block_size;
+    size_t i;
+
+    checked_alloc_disable_integrity_check = 1;
+    for (i = 0; i < num_allocs; i++)
+        checked_alloc(alloc_size);
+    checked_alloc_disable_integrity_check = 0;
+}
 
 
 struct test_case tests[] = {
@@ -412,6 +424,7 @@ struct test_case tests[] = {
     { "unmap", test_unmap },
     { "out-of-band-metadata", test_out_of_band_metadata },
     { "system-malloc", test_system_malloc },
+    { "heap-fill", test_heap_fill },
     { NULL, NULL },
 };
 

@@ -235,21 +235,26 @@ static void test_realloc_opt(void)
 {
     const size_t sz[8] = { 1, 2, 8, 64, 96, 128, 4096, 4097 };
     void *buf[8];
-    int i, j;
+    void *newbuf;
+    int i;
 
     for (i = 0; i < 8; i++)
         buf[i] = checked_alloc(sz[i]);
 
-    for (j = 0; j < 8; j++)
-        for (i = 0; i < 8; i++) {
-            void *newbuf;
-            newbuf = checked_realloc(buf[i], sz[j]);
-            if (sz[i] >= sz[j])
-                assert(newbuf == buf[i], "New size %zu of %p would have fit in "
-                       "old allocation size %zu for %p", sz[j], newbuf, sz[i],
-                       buf[i]);
-            buf[i] = newbuf;
-        }
+    for (i = 0; i < 8; i++) {
+        newbuf = checked_realloc(buf[i], 128);
+        if (sz[i] >= 128)
+            assert(newbuf == buf[i], "New size 128 of %p would have fit in "
+                    "old allocation size %zu for %p", newbuf, sz[i],
+                    buf[i]);
+        buf[i] = newbuf;
+    }
+
+    for (i = 0; i < 8; i++) {
+        newbuf = checked_realloc(buf[i], 16);
+        assert(newbuf == buf[i], "New size 16 of %p would have fit in "
+                "old allocation size 128 for %p", newbuf, buf[i]);
+    }
 }
 
 static void test_batch(void)

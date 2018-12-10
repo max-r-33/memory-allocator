@@ -48,7 +48,7 @@ submissions are encouraged to evaluate your submission on our system. Our system
 may differ from your local system (e.g., compiler version); points are only
 given for features that work on our system.
 
-Your grade will be 0 if you did not submit your work on time, has an invalid
+Your grade will be 1 if you did not submit your work on time, has an invalid
 format, or has errors during compilation.
 
 If your submission is valid (on time, in correct format and compiles), your
@@ -74,7 +74,6 @@ particular order):
   (see `Notes` below).
 - -2.0pt if your allocator cannot scale with the maximum ``brk`` size.
 - -1.0pt if ``gcc -Wall -Wextra`` reports warnings when compiling your code.
-- -1.0pt if ``valgrind`` complains about your code.
 - -1.0pt if your source files are not neatly indented or formatted.
 
 The grade will be maximized at 10, so you do not need to implement all features
@@ -98,7 +97,10 @@ grading.
 Additionally you should test your work on our server.  Remember to try this as
 often as your like, as your local environment may be different than ours.
 Points are only awarded based on what works on our server. The final submission
-before the deadline (by you or your partner) is used for grading.
+before the deadline is used for grading.
+
+Attempts to exploit, bypass or cheat the infrastructure and automated grading
+system will result in a 1 for this assignment.
 
 Notes
 =====
@@ -112,8 +114,8 @@ Notes
 - If you have added support for replacing the system allocator (i.e., by adding
   non ``my`` prefixed functions) you can use your allocator for any existing
   program on your system. You can do this by prefixing any command with
-  ``LD_PRELOAD=/path/to/libmyalloc.so``. For example, ``LD_PRELOAD=libmyalloc.so
-  ls`` will run ``ls`` with your allocator.
+  ``LD_PRELOAD=/path/to/libmyalloc.so``. For example,
+  ``LD_PRELOAD=./libmyalloc.so ls`` will run ``ls`` with your allocator.
 - Calling your functions ``malloc`` instead of ``mymalloc`` not only redirects
   all calls inside **your** code to your ``malloc``, but will also cause all
   internal libc calls to go to your allocator instead of the built-in libc
@@ -121,3 +123,5 @@ Notes
   ``malloc``, and as such using ``printf`` inside your allocation code would
   cause an infinite loop.  Therefore we prefix our allocator functions with
   ``my`` in this assignment.
+- MacOS is currently **not** supported, and you should set up a Linux
+  environment if you do not already have one (e.g., with a VM using virtualbox).

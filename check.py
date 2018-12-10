@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 from __future__ import print_function
 
 import os
@@ -10,21 +10,21 @@ import subprocess
 import sys
 import time
 
-TEST = "./test"
+TEST_BIN = "./test"
 LIB = "libmyalloc.so"
 
 # Only used on server, to ensure an unchanged Makefile
 CLEAN_MAKEFILE = "/framework/Makefile"
 
+# Maximum runtime per test in seconds. Tests are considered failed if the
+# execution took longer than this.
+TIMEOUT = 300  # TODO: change to 30 next year
+TIMEOUT_HEAPFILL = 30
+TIMEOUT_LDPRELOAD = 30
 
-# Some global state - set by one (or more) test and used later to subtract
-# points
-valgrind_failed_test = None
-valgrind_output = None
+
+# Global state - set by one (or more) test and used later to subtract points
 compiler_warnings = None
-
-# Set per-testcase and used by the function actually running the test XXX nasty
-run_with_valgrind = True
 
 # C files added by student - we need these during compilation
 additional_sources = ""
@@ -71,8 +71,8 @@ def colored(val, color=None, bold=False, underline=False, blink=False,
 
 # Test case definition
 class Test():
-    def __init__(self, name, func, valgrind=False, stop_group_on_fail=False):
-        self.name, self.func, self.valgrind = name, func, valgrind
+    def __init__(self, name, func, stop_group_on_fail=False):
+        self.name, self.func = name, func
         self.stop_group_on_fail = stop_group_on_fail
 
 
@@ -87,8 +87,6 @@ class TestGroup():
     def run(self):
         succeeded = 0
         for test in self.tests:
-            global run_with_valgrind
-            run_with_valgrind = test.valgrind
             print('\t' + test.name, end=': ')
             try:
                 test.func()
@@ -178,8 +176,13 @@ def run(writer=None):
             Test("preload python", test_preload("python -c 'print(\"hello, world\\n\")'")),
             Test("preload grep", test_preload("grep -E '^ro+t' /etc/passwd")),
         ),
-        TestGroup("Valgrind memcheck", -1,
-            Test("No errors", check_valgrind),
+        TestGroup("Dynamic heap size", -2.0,
+            Test("128K heap",
+                alloc("heap-fill", ["-m", "%d" % (128 * 1024)],
+                      timeout=TIMEOUT_HEAPFILL)),
+            Test("256M heap",
+                alloc("heap-fill", ["-m", "%d" % (256 * 1024 * 1024)],
+                      timeout=TIMEOUT_HEAPFILL)),
         ),
         TestGroup("Compiler warnings", -1,
             Test("No warnings", check_warnings),
@@ -194,34 +197,47 @@ def run(writer=None):
         totalpoints))
 
 
-def check_cmd(cmd, add_env=None):
+def check_cmd(cmd, add_env=None, timeout=None):
+    timeout = timeout or TIMEOUT
     args = shlex.split(cmd)
     env = os.environ.copy()
     if add_env:
         env.update(add_env)
-    p = subprocess.Popen(args, env=env, stdout=subprocess.PIPE,
+    proc = subprocess.Popen(args, env=env, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-    stdout, stderr = p.communicate()
+    try:
+        out, err = proc.communicate(timeout=timeout)
+        out, err = out.decode('utf-8'), err.decode('utf-8')
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        out, err = proc.communicate()
+        out, err = out.decode('utf-8'), err.decode('utf-8')
+        err += "Timeout of %d seconds expired - test took too long. " % timeout
 
-    if p.returncode:
+    if proc.returncode:
         raise TestError("Command returned non-zero value.\n" +
                 "Command: %s\nReturn code: %d\nstdout: %s\nstderr: %s" %
-                (cmd, p.returncode, stdout, stderr))
-    return stdout, stderr
+                (cmd, proc.returncode, out, err))
+    return out, err
 
 
-def run_alloc_test_bin(test, alloc_test_bin=None, prefix=None):
-    alloc_test_bin = alloc_test_bin or TEST
-    prefix = prefix or []
+def run_alloc_test_bin(test, args=None, timeout=None):
+    args = args or []
+    timeout = timeout or TIMEOUT
 
-    args = prefix + [alloc_test_bin]
-    if use_calloc:
-        args.append("-c")
-    args.append(test)
+    args = [TEST_BIN] + args + [test]
 
     proc = subprocess.Popen(args, stdout=subprocess.PIPE,
         stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-    out, err = proc.communicate()
+
+    try:
+        out, err = proc.communicate(timeout=timeout)
+        out, err = out.decode('utf-8'), err.decode('utf-8')
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        out, err = proc.communicate()
+        out, err = out.decode('utf-8'), err.decode('utf-8')
+        err += "Timeout of %d seconds expired - test took too long. " % timeout
     if proc.returncode < 0:
         signame = dict((getattr(signal, n), n) \
             for n in dir(signal) if n.startswith('SIG') and '_' not in n)
@@ -230,31 +246,17 @@ def run_alloc_test_bin(test, alloc_test_bin=None, prefix=None):
     return proc.returncode, out, err
 
 
-def run_alloc_checked(test):
-    global valgrind_failed_test, valgrind_output
-    if not run_with_valgrind or valgrind_failed_test is not None:
-        return run_alloc_test_bin(test)
-    else:
-        ret, out, err = run_alloc_test_bin(test,
-            prefix=["valgrind", "--log-file=_valgrind.out"])
-
-        with open("_valgrind.out") as f:
-            o = f.read()
-        for line in o.split("\n"):
-            if 'ERROR SUMMARY' in line:
-                nerrors = int(line.split()[3])
-                if nerrors:
-                    valgrind_failed_test = test
-                    valgrind_output = o
-                break
-
-        return ret, out, err
-
-def alloc(test):
+def alloc(test, args=None, timeout=None):
+    args = args or []
     def alloc_inner():
-        ret, out, err = run_alloc_checked(test)
+        if use_calloc:
+            args.append("-c")
+        ret, out, err = run_alloc_test_bin(test, args, timeout=timeout)
         if ret:
-            raise TestError("Test \"%s\" exited with error: %s" % (test, err))
+            testname = '"%s"' % test
+            if args:
+                testname += ' (with %s)' % ' '.join(args)
+            raise TestError("Test %s exited with error: %s" % (testname, err))
     return alloc_inner
 
 def test_calloc():
@@ -265,14 +267,8 @@ def test_calloc():
 def test_preload(cmd):
     env = {"LD_PRELOAD": "%s/%s" % (os.getcwd(), LIB)}
     def _inner():
-        check_cmd(cmd, env)
+        check_cmd(cmd, env, timeout=TIMEOUT_LDPRELOAD)
     return _inner
-
-def check_valgrind():
-    if valgrind_failed_test is not None:
-        raise TestError("Valgrind failed for test %s:\n%s" %
-                (valgrind_failed_test, valgrind_output))
-
 
 def check_warnings():
     if compiler_warnings is not None:
@@ -290,7 +286,7 @@ def check_compile():
         global compiler_warnings
         compiler_warnings = err
 
-    check_cmd("%s -h" % TEST)
+    check_cmd("%s -h" % TEST_BIN)
 
 
 def do_additional_params(lst, name, suffix=''):
@@ -314,9 +310,9 @@ def fix_makefiles():
         for l in f:
             l = l.strip()
             if l.startswith("ADDITIONAL_SOURCES = "):
-                addsrc = filter(bool, l.split(' ')[2:])
+                addsrc = list(filter(bool, l.split(' ')[2:]))
             if l.startswith("ADDITIONAL_HEADERS = "):
-                addhdr = filter(bool, l.split(' ')[2:])
+                addhdr = list(filter(bool, l.split(' ')[2:]))
     do_additional_params(addsrc, "ADDITIONAL_SOURCES", ".c")
     do_additional_params(addhdr, "ADDITIONAL_HEADERS", ".h")
 

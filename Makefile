@@ -23,7 +23,7 @@ CFLAGS_LIB = -fPIC
 CFLAGS_TEST = -DALLOC_TEST_FRAMEWORK
 LDFLAGS =
 LDFLAGS_LIB = -fPIC -shared
-LDFLAGS_TEST = -ldl -L. -Wl,-rpath=$(CURDIR) -lmyalloc
+LDFLAGS_TEST = -ldl -L. -Wl,-rpath="$(CURDIR)" -lmyalloc
 
 CC = gcc
 
